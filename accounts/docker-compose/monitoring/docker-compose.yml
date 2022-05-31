@@ -1,0 +1,92 @@
+version: "3.8"
+
+services:
+
+  grafana:
+    image: "grafana/grafana:latest"
+    ports:
+     - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=password
+    networks:
+     - my-custom-network
+    depends_on:
+      - prometheus
+      
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+    - "9090:9090"
+    volumes:
+     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+     - my-custom-network
+  
+  configserver:
+    image: ricardodollerup/configserver:latest
+    mem_limit: 700m
+    ports:
+     - "8071:8071"
+    networks:
+     - my-custom-network
+
+  accounts:
+    image: ricardodollerup/accounts:latest
+    mem_limit: 700m
+    ports:
+     - "8080:8080"
+    networks:
+     - my-custom-network
+    depends_on:
+     - configserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+
+  loans:
+    image: ricardodollerup/loans:latest
+    mem_limit: 700m
+    ports:
+     - "8090:8090"
+    networks:
+     - my-custom-network
+    depends_on:
+     - configserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+
+  cards:
+    image: ricardodollerup/cards:latest
+    mem_limit: 700m
+    ports:
+     - "9000:9000"
+    networks:
+     - my-custom-network
+    depends_on:
+     - configserver
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      SPRING_CONFIG_IMPORT: configserver:http://configserver:8071/
+
+networks:
+  my-custom-network:
